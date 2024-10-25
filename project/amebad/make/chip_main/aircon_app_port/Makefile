@@ -35,6 +35,7 @@ DIR += $(CHIPDIR)/src/app/server
 DIR += $(CHIPDIR)/src/lib/dnssd/minimal_mdns/responders
 DIR += $(CHIPDIR)/examples/platform/ameba/ota
 DIR += $(CHIPDIR)/examples/platform/ameba/route_hook
+DIR += $(CHIPDIR)/examples/platform/ameba/shell
 DIR += $(CHIPDIR)/examples/providers
 DIR += $(CHIPDIR)/zzz_generated/app-common/app-common/zap-generated
 DIR += $(CHIPDIR)/zzz_generated/app-common/app-common/zap-generated/attributes
@@ -55,6 +56,7 @@ vpath %.c $(DIR) $(shell find $(DIR) -type d)
 #*****************************************************************************#
 
 CHIP_ENABLE_OTA_REQUESTOR = $(shell grep 'chip_enable_ota_requestor' $(OUTPUT_DIR)/args.gn | cut -d' ' -f3)
+CHIP_ENABLE_SHELL = $(shell grep 'chip_build_libshell' $(OUTPUT_DIR)/args.gn | cut -d' ' -f3)
 
 #*****************************************************************************#
 #                              CFLAGS                                         #
@@ -67,6 +69,10 @@ GLOBAL_CFLAGS += -DCHIP_ADDRESS_RESOLVE_IMPL_INCLUDE_HEADER=\"lib/address_resolv
 # matter blemgr adapter options
 ifeq ($(CONFIG_BLE_MATTER_ADAPTER),y)
 GLOBAL_CFLAGS += -DCONFIG_MATTER_BLEMGR_ADAPTER=1
+endif
+
+ifeq ($(CHIP_ENABLE_SHELL), true)
+GLOBAL_CFLAGS += -DCONFIG_ENABLE_CHIP_SHELL=1
 endif
 
 #*****************************************************************************#
@@ -137,6 +143,11 @@ CPPSRC += $(CHIPDIR)/zzz_generated/app-common/app-common/zap-generated/attribute
 # porting layer src files
 CPPSRC += $(BASEDIR)/component/common/application/matter/core/matter_core.cpp
 CPPSRC += $(BASEDIR)/component/common/application/matter/core/matter_interaction.cpp
+ifeq ($(CHIP_ENABLE_SHELL), true)
+CPPSRC += $(CHIPDIR)/examples/platform/ameba/shell/launch_shell.cpp
+CPPSRC += $(BASEDIR)/component/common/application/matter/core/matter_prov.cpp
+CPPSRC += $(BASEDIR)/component/common/application/matter/drivers/matter_consoles/matter_command.cpp
+endif
 ifeq ($(CHIP_ENABLE_OTA_REQUESTOR), true)
 CPPSRC += $(BASEDIR)/component/common/application/matter/core/matter_ota_initializer.cpp
 endif

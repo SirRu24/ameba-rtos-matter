@@ -51,6 +51,7 @@ INFO_DIR=$(TARGET)/Debug/info
 
 CHIP_ENABLE_AMEBA_DLOG = $(shell grep "#define CONFIG_ENABLE_AMEBA_DLOG" $(MATTER_DIR)/common/include/platform_opts_matter.h | tr -s '[:space:]' | cut -d' ' -f3)
 CHIP_ENABLE_OTA_REQUESTOR = $(shell grep 'chip_enable_ota_requestor' $(OUTPUT_DIR)/args.gn | cut -d' ' -f3)
+CHIP_ENABLE_SHELL = $(shell grep 'chip_build_libshell' $(OUTPUT_DIR)/args.gn | cut -d' ' -f3)
 
 # Include folder list
 # -------------------------------------------------------------------
@@ -128,6 +129,11 @@ SRC_CPP += $(CHIPDIR)/zzz_generated/app-common/app-common/zap-generated/cluster-
 # porting layer source files
 SRC_CPP += $(SDKROOTDIR)/component/common/application/matter/core/matter_core.cpp
 SRC_CPP += $(SDKROOTDIR)/component/common/application/matter/core/matter_interaction.cpp
+ifeq ($(CHIP_ENABLE_SHELL), true)
+SRC_CPP += $(CHIPDIR)/examples/platform/ameba/shell/launch_shell.cpp
+SRC_CPP += $(SDKROOTDIR)/component/common/application/matter/core/matter_prov.cpp
+SRC_CPP += $(SDKROOTDIR)/component/common/application/matter/drivers/matter_consoles/matter_command.cpp
+endif
 ifeq ($(CHIP_ENABLE_OTA_REQUESTOR), true)
 SRC_CPP += $(SDKROOTDIR)/component/common/application/matter/core/matter_ota_initializer.cpp
 endif
@@ -183,6 +189,11 @@ CFLAGS += -DV8M_STKOVF
 include $(MATTER_INCLUDE)
 
 CFLAGS += -DCHIP_PROJECT=1
+
+# Matter Shell Flags
+ifeq ($(CHIP_ENABLE_SHELL), true)
+CFLAGS += -DCONFIG_ENABLE_CHIP_SHELL=1
+endif
 
 # Others
 CFLAGS += -DCHIP_ADDRESS_RESOLVE_IMPL_INCLUDE_HEADER=\"lib/address_resolve/AddressResolve_DefaultImpl.h\"

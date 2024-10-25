@@ -57,7 +57,7 @@
 #undef secureconfigTOTAL_SRAM_HEAP_SIZE
 
 /* Define new values */
-#define configTOTAL_HEAP_SIZE                   ( ( size_t ) ( 200 * 1024 ) )
+#define configTOTAL_HEAP_SIZE                   ( ( size_t ) ( 220 * 1024 ) )
 #define CONFIG_DYNAMIC_HEAP_SIZE                0
 #define INCLUDE_uxTaskGetStackSize              1
 #define INCLUDE_uxTaskGetFreeStackSize          1

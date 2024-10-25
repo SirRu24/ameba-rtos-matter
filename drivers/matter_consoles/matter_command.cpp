@@ -17,9 +17,11 @@
  */
 
 #include "matter_command.h"
+#include "matter_core_command.h"
 #include "matter_dishwasher_alarm_command.h"
 #include "matter_occupancy_sensing_command.h"
 #include "matter_operational_state_command.h"
+#include "matter_prov_command.h"
 #include "matter_refrigerator_alarm_command.h"
 #include "matter_rvc_modes_command.h"
 #include "matter_switch_command.h"
@@ -169,6 +171,45 @@ static void RegisterManualOperationCommands()
 
     Engine::Root().RegisterCommands(&sManualOperationCommand, 1);
 }
+
+/********************************************************
+ * Matter Provisioning shell functions
+ *********************************************************/
+
+CHIP_ERROR MatterProvisioningCommandHandler(int argc, char ** argv)
+{
+    if (argc == 0)
+    {
+        return MatterProvisioningCommandHelpHandler(argc, argv);
+    }
+
+    return sShellMatterProvisioningSubCommands.ExecCommand(argc, argv);
+}
+
+/**
+ * @brief configures matter control shell
+ *
+ */
+static void RegisterMatterProvisioningCommands()
+{
+    static const shell_command_t sMatterProvisioningSubCommands[] = {
+        { &MatterProvisioningCommandHelpHandler, "help", "Usage: prov help" },
+        { &MatterProvisioningStatusCommandHandler, "status", "status Usage: prov status" },
+        { &MatterProvisioningEnterProvModeCommandHandler, "enterprovmode", "enterprovmode Usage: prov enterprovmode" },
+        { &MatterProvisioningExitProvModeCommandHandler, "exitprovmode", "exitprovmode Usage: prov exitprovmode" },
+        { &MatterProvisioningPrintProvTableCommandHandler, "printprovtable", "printprovtable Usage: prov printprovtable" },
+        { &MatterProvisioningEraseRowCommandHandler, "eraserow", "eraserow Usage: prov eraserow <row_number>" },
+    };
+
+    static const shell_command_t sMatterProvisioningCommand = { &MatterProvisioningCommandHandler, "prov",
+        "Matter Provisioning commands. Usage: prov <subcommand>" };
+
+    // Register commands
+    sShellMatterProvisioningSubCommands.RegisterCommands(sMatterProvisioningSubCommands, ArraySize(sMatterProvisioningSubCommands));
+
+    Engine::Root().RegisterCommands(&sMatterProvisioningCommand, 1);
+}
+
 #endif // ENABLE_CHIP_SHELL
 
 } // namespace
@@ -181,6 +222,18 @@ CHIP_ERROR InitManualOperation()
 {
 #if CONFIG_ENABLE_CHIP_SHELL
     RegisterManualOperationCommands();
+#endif
+    return CHIP_NO_ERROR;
+}
+
+/********************************************************
+ * Provisioning functions
+ *********************************************************/
+
+CHIP_ERROR InitMatterProvisioningControl()
+{
+#if CONFIG_ENABLE_CHIP_SHELL
+    RegisterMatterProvisioningCommands();
 #endif
     return CHIP_NO_ERROR;
 }

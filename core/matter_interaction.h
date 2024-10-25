@@ -35,3 +35,8 @@ CHIP_ERROR matter_interaction_start_downlink(void);
  * @return CHIP_NO_ERROR if created sucessfully.
  */
 CHIP_ERROR matter_interaction_start_uplink(void);
+
+/**
+ * @brief  Clean Uplink and Downlink Tasks and Queues.
+ */
+void matter_interaction_clean_up(void);

@@ -19,6 +19,9 @@
 #if defined(CONFIG_ENABLE_AMEBA_MDNS_FILTER) && (CONFIG_ENABLE_AMEBA_MDNS_FILTER == 1)
 #include <matter_mdns_filter.h>
 #endif
+#if defined(CONFIG_USE_AMEBA_DATA_MODEL) && (CONFIG_USE_AMEBA_DATA_MODEL == 1)
+#include "matter_data_model.h"
+#endif
 
 #include <DeviceInfoProviderImpl.h>
 
@@ -55,6 +58,7 @@
 
 #if CONFIG_ENABLE_CHIP_SHELL
 #include <shell/launch_shell.h>
+#include <matter_command.h>
 #endif
 
 #if CONFIG_ENABLE_AMEBA_CRYPTO
@@ -86,6 +90,8 @@ app::Clusters::NetworkCommissioning::Instance
 
 chip::DeviceLayer::DeviceInfoProviderImpl gExampleDeviceInfoProvider;
 chip::DeviceLayer::FactoryDataProvider mFactoryDataProvider;
+static bool bMatterServerRunning       = false;
+static bool bMatterPlatformInitialized = false;
 
 #if defined(CONFIG_ENABLE_AMEBA_MDNS_FILTER) && (CONFIG_ENABLE_AMEBA_MDNS_FILTER == 1)
 constexpr size_t kMaxPendingMdnsPackets = 10u;
@@ -226,10 +232,6 @@ void matter_core_init_server(intptr_t context)
         PrintOnboardingCodes(chip::RendezvousInformationFlags(chip::RendezvousInformationFlag::kBLE));
     }
 
-#if CONFIG_ENABLE_CHIP_SHELL
-    InitBindingHandler();
-#endif
-
     xTaskNotifyGive(task_to_notify);
 }
 
@@ -278,9 +280,15 @@ CHIP_ERROR matter_core_init(void)
     err = PlatformMgr().StartEventLoopTask();
     SuccessOrExit(err);
 
+#if defined(CONFIG_ENABLE_CHIP_SHELL) && (CONFIG_ENABLE_CHIP_SHELL == 1)
+    chip::LaunchShell();
+    InitMatterProvisioningControl();
+#endif
+
     // Register a function to receive events from the CHIP device layer.  Note that calls to
     // this function will happen on the CHIP event loop thread, not the app_main thread.
     PlatformMgr().AddEventHandler(matter_core_device_callback_internal, reinterpret_cast<intptr_t>(NULL));
+    bMatterPlatformInitialized = true;
 
     // PlatformMgr().ScheduleWork(matter_core_init_server, 0);
     PlatformMgr().ScheduleWork(matter_core_init_server, reinterpret_cast<intptr_t>(xTaskGetCurrentTaskHandle()));
@@ -292,6 +300,7 @@ exit:
 
 CHIP_ERROR matter_core_start(void)
 {
+    CHIP_ERROR err = CHIP_NO_ERROR;
 #if defined(CONFIG_ENABLE_AMEBA_DLOG) && (CONFIG_ENABLE_AMEBA_DLOG == 1)
     fault_handler_override(matter_fault_log, matter_bt_log);
     int res = matter_fs_init();
@@ -312,5 +321,73 @@ CHIP_ERROR matter_core_start(void)
 #if defined(CONFIG_PLATFORM_8710C)
     matter_timer_init(); //currently 8721D cannot use this implementation
 #endif
-    return matter_core_init();
+    if (matter_core_server_is_running())
+    {
+        ChipLogProgress(DeviceLayer, "Matter device is already started!");
+    }
+    else
+    {
+        if (bMatterPlatformInitialized)
+        {
+            PlatformMgr().ScheduleWork(matter_core_init_server, reinterpret_cast<intptr_t>(xTaskGetCurrentTaskHandle()));
+            xTaskNotifyWait(0, 0, NULL, portMAX_DELAY);
+#if defined(CONFIG_USE_AMEBA_DATA_MODEL) && (CONFIG_USE_AMEBA_DATA_MODEL == 1)
+            Node::getInstance().enableAllEndpoints();
+#endif
+            // customer can add code to retain back the current value of the driver to the matter layer
+        }
+        else
+        {
+            err = matter_core_init();
+        }
+        bMatterServerRunning = true;
+    }
+    return err;
+}
+
+void clusters_shutdown(void) // These may have been initialised via the emberAfXxxClusterInitCallback methods. We need to destroy them during stop.
+{
+#if defined(CONFIG_EXAMPLE_MATTER_DISHWASHER) && (CONFIG_EXAMPLE_MATTER_DISHWASHER == 1)
+    chip::app::Clusters::OperationalState::Shutdown();
+    chip::app::Clusters::DishwasherMode::Shutdown();
+#elif defined(CONFIG_EXAMPLE_MATTER_LAUNDRYWASHER) && (CONFIG_EXAMPLE_MATTER_LAUNDRYWASHER == 1)
+    chip::app::Clusters::OperationalState::Shutdown();
+#elif defined(CONFIG_EXAMPLE_MATTER_MICROWAVE_OVEN) && (CONFIG_EXAMPLE_MATTER_MICROWAVE_OVEN == 1)
+    chip::app::Clusters::MicrowaveOvenMode::Shutdown();
+#elif defined(CONFIG_EXAMPLE_MATTER_REFRIGERATOR) && (CONFIG_EXAMPLE_MATTER_REFRIGERATOR == 1)
+    chip::app::Clusters::RefrigeratorAndTemperatureControlledCabinetMode::Shutdown();
+#endif
+}
+
+CHIP_ERROR matter_core_stop()
+{
+    CHIP_ERROR err = CHIP_NO_ERROR;
+
+    if (matter_core_server_is_running())
+    {
+        PlatformMgr().LockChipStack();
+        chip::Server::GetInstance().Shutdown();
+        PlatformMgr().UnlockChipStack();
+#if CONFIG_NETWORK_LAYER_BLE // Clear state of BLE which was not run in the server shutdown
+        if(ConnectivityMgr().GetBleLayer()->mBleTransport)
+        {
+            chip::Platform::Delete(ConnectivityMgr().GetBleLayer()->mBleTransport);
+        }
+#endif
+        clusters_shutdown();
+#if defined(CONFIG_USE_AMEBA_DATA_MODEL) && (CONFIG_USE_AMEBA_DATA_MODEL == 1)
+            Node::getInstance().disableAllEndpoints();
+#endif
+        bMatterServerRunning = false;
+    }
+    else
+    {
+        ChipLogProgress(DeviceLayer, "Matter device is already stopped!");
+    }
+    return err;
+}
+
+bool matter_core_server_is_running()
+{
+    return bMatterServerRunning;
 }

@@ -24,3 +24,4 @@
 #include "lib/core/CHIPError.h"
 
 CHIP_ERROR InitManualOperation();
+CHIP_ERROR InitMatterProvisioningControl();
