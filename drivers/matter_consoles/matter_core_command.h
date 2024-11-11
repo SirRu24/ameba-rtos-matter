@@ -40,8 +40,7 @@ using Shell::streamer_printf;
 #endif // defined(CONFIG_ENABLE_CHIP_SHELL) && (CONFIG_ENABLE_CHIP_SHELL == 1)
 
 #if defined(CONFIG_ENABLE_CHIP_SHELL) && (CONFIG_ENABLE_CHIP_SHELL == 1) && \
-    defined(CONFIG_EXAMPLE_MATTER_CHIPTEST) && (CONFIG_EXAMPLE_MATTER_CHIPTEST == 0) \
-    !defined(CONFIG_PLATFORM_8710C) //will not be compiled for non porting layer and ameba Z2, still buggy
+    defined(CONFIG_EXAMPLE_MATTER_CHIPTEST) && (CONFIG_EXAMPLE_MATTER_CHIPTEST == 0)
 
 /********************************************************
  * Matter Core shell functions, controlled by Ameba Shell
@@ -105,4 +104,3 @@ extern "C" void MatterCoreStopCommandHandler()
 }
 #endif // defined(CONFIG_ENABLE_CHIP_SHELL) && (CONFIG_ENABLE_CHIP_SHELL == 1) && \ 
        // defined(CONFIG_EXAMPLE_MATTER_CHIPTEST) && (CONFIG_EXAMPLE_MATTER_CHIPTEST == 0)
-       // !defined(CONFIG_PLATFORM_8710C)

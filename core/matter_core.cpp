@@ -65,6 +65,15 @@
 #include <platform/Ameba/crypto/AmebaPersistentStorageOperationalKeystore.h>
 #endif
 
+#if CONFIG_NETWORK_LAYER_BLE
+#define BLE_TRANSPORT_INDEX ( INET_CONFIG_ENABLE_IPV4 + CONFIG_NETWORK_LAYER_BLE )
+// Above is needed to shut down BLE Transport Manager when matter_core_stop is called.
+// Why is BLE_TRANSPORT_INDEX defined as above?
+// at connectedhomeip/src/app/server/Server.h, mTransports is defined as ServerTransportMgr.
+// ServerTransportMgr depends on different macros.
+// The index for BLE Transport Manager depends on the two Macros above.
+#endif
+
 using namespace ::chip;
 using namespace ::chip::app;
 using namespace ::chip::DeviceLayer;
@@ -369,9 +378,16 @@ CHIP_ERROR matter_core_stop()
         chip::Server::GetInstance().Shutdown();
         PlatformMgr().UnlockChipStack();
 #if CONFIG_NETWORK_LAYER_BLE // Clear state of BLE which was not run in the server shutdown
-        if(ConnectivityMgr().GetBleLayer()->mBleTransport)
+        if(chip::Server::GetInstance().GetBleLayerObject() != nullptr)
         {
-            chip::Platform::Delete(ConnectivityMgr().GetBleLayer()->mBleTransport);
+            // Step 1: Get the reference to TransportMgrBase
+            TransportMgrBase & transportMgrBase = chip::Server::GetInstance().GetTransportManager();
+            // Step 2: Cast the reference to ServerTransportMgr
+            ServerTransportMgr & serverTransportMgr = static_cast<ServerTransportMgr &>(transportMgrBase);
+            // Step 3: Access the BLE mTransport member
+            Transport::BLEBase & transportBLEBase = serverTransportMgr.GetTransport().GetImplAtIndex<BLE_TRANSPORT_INDEX>();
+            // Step 4: Destruct transportBLEBase to deinitialize BLE Transport Mgr
+            transportBLEBase.~BLEBase();
         }
 #endif
         clusters_shutdown();
